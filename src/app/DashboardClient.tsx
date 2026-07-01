@@ -6,9 +6,10 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import {
-  AlertTriangle, ArrowDownLeft, ArrowUpRight, ArrowRight, Bell, X, Receipt, FileText,
+  AlertTriangle, ArrowDownLeft, ArrowUpRight, ArrowRight, Bell, X, Receipt, FileText, Download, CheckCircle,
 } from 'lucide-react';
 import { HelpTooltip } from '@/components/Tooltip';
+import { ChartBox } from '@/components/ChartBox';
 import { formatCurrency } from '@/lib/format';
 
 const PIE_COLORS = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6'];
@@ -24,6 +25,47 @@ export default function DashboardClient({
   const [actionOpen, setActionOpen] = useState(false);
   const [txnOpen, setTxnOpen] = useState(false);
   const [remindBusy, setRemindBusy] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportStage, setExportStage] = useState<'confirm' | 'preparing' | 'done'>('confirm');
+  const [exportFile, setExportFile] = useState('');
+  const [exportError, setExportError] = useState('');
+
+  const buildFileName = () => {
+    const slug = (businessName || 'business').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'business';
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `${slug}_${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}.pdf`;
+  };
+
+  const openExport = () => {
+    setExportFile(buildFileName());
+    setExportStage('confirm');
+    setExportError('');
+    setExportOpen(true);
+  };
+
+  const confirmExport = async () => {
+    setExportStage('preparing');
+    setExportError('');
+    try {
+      const res = await fetch('/api/report/export');
+      if (!res.ok) throw new Error('Could not generate the report. Please try again.');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = exportFile; // download uses the filename shown to the user
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setExportStage('done');
+      setTimeout(() => setExportOpen(false), 1600);
+    } catch (e: any) {
+      setExportError(e.message || 'Export failed');
+      setExportStage('confirm');
+    }
+  };
 
   const overdueInvTotal = overdueInvoices.reduce((s: number, i: any) => s + i.amount, 0);
   const actionCount = overdueInvoices.length + overdueBillCount;
@@ -46,11 +88,18 @@ export default function DashboardClient({
           <h1 className="text-h1">Hi {(userName || '').split(' ')[0] || 'there'} 👋</h1>
           <p className="text-muted">Here's how {businessName || 'your business'} is doing today.</p>
         </div>
-        <div className="net-change-chip glass-card">
-          <span className="text-xs text-muted uppercase">30-Day Net Cash Change</span>
-          <span className={`text-h2 ${netChange >= 0 ? 'text-success' : 'text-danger'}`}>
-            {netChange >= 0 ? '+' : '-'}{fmt(Math.abs(netChange))}
-          </span>
+        <div className="dashboard-heading-right">
+          {canWrite && (
+            <button className="btn-secondary export-btn" onClick={openExport}>
+              <Download size={16} /> Export Report
+            </button>
+          )}
+          <div className="net-change-chip glass-card">
+            <span className="text-xs text-muted uppercase">30-Day Net Cash Change</span>
+            <span className={`text-h2 ${netChange >= 0 ? 'text-success' : 'text-danger'}`}>
+              {netChange >= 0 ? '+' : '-'}{fmt(Math.abs(netChange))}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -103,7 +152,7 @@ export default function DashboardClient({
       <div className="dashboard-main-grid mb-6">
         <div className="chart-section glass-panel">
           <h2 className="text-h2 mb-4">30-Day Cash Flow</h2>
-          <div style={{ width: '100%', height: 300 }}>
+          <ChartBox height={300}>
             <ResponsiveContainer>
               <AreaChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <defs>
@@ -124,7 +173,7 @@ export default function DashboardClient({
                 <Area type="monotone" dataKey="Outflows" stroke="var(--danger)" strokeWidth={2.5} fill="url(#outGrad)" />
               </AreaChart>
             </ResponsiveContainer>
-          </div>
+          </ChartBox>
         </div>
 
         <div className="side-widgets">
@@ -178,7 +227,7 @@ export default function DashboardClient({
           {expenseBreakdown.length === 0 ? (
             <p className="text-muted text-sm text-center py-6">No expenses recorded yet.</p>
           ) : (
-            <div style={{ width: '100%', height: 260 }}>
+            <ChartBox height={260}>
               <ResponsiveContainer>
                 <PieChart>
                   <Pie data={expenseBreakdown} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
@@ -187,7 +236,7 @@ export default function DashboardClient({
                   <Tooltip formatter={(v: any, n: any) => [fmt(v), n]} contentStyle={{ background: 'var(--surface-solid)', border: '1px solid var(--surface-border)', borderRadius: 8 }} />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
+            </ChartBox>
           )}
           <div className="legend-row">
             {expenseBreakdown.slice(0, 6).map((e: any, i: number) => (
@@ -205,19 +254,25 @@ export default function DashboardClient({
             <HelpTooltip content="How long your unpaid customer invoices have been outstanding. Older buckets are higher collection risk." />
           </div>
           <p className="text-xs text-muted mb-3">Outstanding invoices by how overdue they are</p>
-          <div style={{ width: '100%', height: 260 }}>
+          <ChartBox height={260}>
             <ResponsiveContainer>
               <BarChart data={aging} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-border)" vertical={false} />
                 <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} />
                 <YAxis stroke="var(--text-secondary)" fontSize={12} width={70} tickFormatter={(v) => fmt(v)} />
-                <Tooltip formatter={(v: any) => fmt(v)} cursor={{ fill: 'var(--primary-light)' }} contentStyle={{ background: 'var(--surface-solid)', border: '1px solid var(--surface-border)', borderRadius: 8 }} />
+                <Tooltip
+                  formatter={(v: any) => [fmt(v), 'Outstanding']}
+                  cursor={{ fill: 'var(--primary-light)' }}
+                  contentStyle={{ background: 'var(--surface-solid)', border: '1px solid var(--surface-border)', borderRadius: 8 }}
+                  labelStyle={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: 4 }}
+                  itemStyle={{ color: 'var(--text-primary)' }}
+                />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                   {aging.map((_: any, i: number) => <Cell key={i} fill={['#10b981', '#f59e0b', '#f97316', '#ef4444'][i]} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </div>
+          </ChartBox>
         </div>
       </div>
 
@@ -301,6 +356,46 @@ export default function DashboardClient({
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ---- Export report modal (confirm → prepare → download) ---- */}
+      {exportOpen && (
+        <div className="modal-overlay" onClick={() => exportStage !== 'preparing' && setExportOpen(false)}>
+          <div className="modal-content animate-fade-in export-modal" onClick={(e) => e.stopPropagation()}>
+            {exportStage === 'confirm' && (
+              <>
+                <div className="flex-between mb-3">
+                  <h2 className="text-h2 flex-center" style={{ gap: 8, justifyContent: 'flex-start' }}><FileText size={20} /> Export Business Report</h2>
+                  <button className="action-btn" onClick={() => setExportOpen(false)}><X size={18} /></button>
+                </div>
+                <p className="text-muted text-sm mb-3">A PDF snapshot with your KPIs, cash-flow chart, expense breakdown, receivables aging, statement of cash flows, budget vs actuals, forecast, and action items.</p>
+                {exportError && <div className="alert-error mb-3">{exportError}</div>}
+                <div className="export-file-box">
+                  <span className="text-xs text-muted uppercase">File name</span>
+                  <div className="export-file-name">{exportFile}</div>
+                </div>
+                <div className="flex-between mt-4 gap-2">
+                  <button className="btn-secondary" onClick={() => setExportOpen(false)}>Cancel</button>
+                  <button className="btn-primary" onClick={confirmExport}><Download size={16} /> Confirm &amp; Download</button>
+                </div>
+              </>
+            )}
+            {exportStage === 'preparing' && (
+              <div className="export-status">
+                <div className="report-spinner" />
+                <p className="font-semibold mt-3">Preparing your report…</p>
+                <p className="text-muted text-sm">Gathering insights and drawing charts.</p>
+              </div>
+            )}
+            {exportStage === 'done' && (
+              <div className="export-status">
+                <CheckCircle size={44} className="text-success" />
+                <p className="font-semibold mt-3">Report downloaded</p>
+                <p className="text-muted text-sm">{exportFile}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
