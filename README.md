@@ -25,6 +25,7 @@ Built as a full-stack **Next.js 16** application (App Router) with **React 19**,
 - **Action Center** — a clickable panel of overdue invoices (who to collect from) and bills (who to pay), with one-click **payment-reminder emails** to customers
 - Insight charts: 30-day cash-flow area chart, expense-by-category donut, receivables aging
 - Recent transactions with a full "bank feed" view
+- **Export Report** — one-click, downloadable **PDF business snapshot** (KPIs, cash-flow chart, expense breakdown, receivables aging, statement of cash flows, budget vs actuals, forecast, and action items). Named `businessname_date_time.pdf`, with a confirm-and-prepare flow; available to Admin/Accountant, withheld from Viewers.
 
 **Accounts Receivable (Invoices)**
 - Create / edit / delete invoices with line items and tax
