@@ -77,7 +77,7 @@ export default function InvoicesClient({ initialInvoices, customers, kpis, curre
       body: JSON.stringify({ paidDate: form.get('paidDate'), method: form.get('method'), amount: form.get('amount') }),
     });
     setBusy(false);
-    if (res.ok) { setPayTarget(null); router.refresh(); }
+    if (res.ok) { setPayTarget(null); router.refresh(); window.dispatchEvent(new Event('cashflow:refresh')); }
     else alert((await res.json()).error || 'Failed');
   };
 

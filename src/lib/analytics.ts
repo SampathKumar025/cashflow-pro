@@ -56,14 +56,25 @@ export async function cashFlowStatement(ownerId: string, from: Date, to: Date) {
   return { opening, operating, investing, financing, closing };
 }
 
-/** Budget vs Actuals for a given month/year. */
+/**
+ * Budget vs Actuals for a given month/year. If the requested month has no
+ * budget targets (e.g. the demo ledger was generated in an earlier month),
+ * fall back to the most recent month that does — and compute actuals for that
+ * same month — so the view is always populated with meaningful data.
+ */
 export async function budgetVsActuals(ownerId: string, month: number, year: number) {
-  const from = new Date(year, month - 1, 1);
-  const to = new Date(year, month, 0, 23, 59, 59);
-  const [budgets, txns] = await Promise.all([
-    prisma.budget.findMany({ where: { ownerId, month, year } }),
-    prisma.transaction.findMany({ where: { ownerId, type: 'OUT', date: { gte: from, lte: to } } }),
-  ]);
+  let effMonth = month, effYear = year;
+  let budgets = await prisma.budget.findMany({ where: { ownerId, month, year } });
+  if (budgets.length === 0) {
+    const latest = await prisma.budget.findFirst({ where: { ownerId }, orderBy: [{ year: 'desc' }, { month: 'desc' }] });
+    if (latest) {
+      effMonth = latest.month; effYear = latest.year;
+      budgets = await prisma.budget.findMany({ where: { ownerId, month: effMonth, year: effYear } });
+    }
+  }
+  const from = new Date(effYear, effMonth - 1, 1);
+  const to = new Date(effYear, effMonth, 0, 23, 59, 59);
+  const txns = await prisma.transaction.findMany({ where: { ownerId, type: 'OUT', date: { gte: from, lte: to } } });
 
   const budgetMap = new Map(budgets.map((b) => [b.category, b.amount]));
   const actualMap = new Map<string, number>();

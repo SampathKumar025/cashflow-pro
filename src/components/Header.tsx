@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { LogOut, User, ChevronDown, Lock } from 'lucide-react';
 import { formatCurrency, initials } from '@/lib/format';
 import './Header.css';
@@ -17,16 +17,26 @@ type Me = {
 
 export const Header = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const [me, setMe] = useState<Me | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  const loadMe = useCallback(() => {
     fetch('/api/auth/me')
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => data && setMe(data.user))
       .catch(() => {});
   }, []);
+
+  // Refresh on mount, on route change, and whenever a mutation broadcasts that
+  // balance-affecting data changed (e.g. a bill/invoice was marked paid).
+  useEffect(() => { loadMe(); }, [loadMe, pathname]);
+  useEffect(() => {
+    const onRefresh = () => loadMe();
+    window.addEventListener('cashflow:refresh', onRefresh);
+    return () => window.removeEventListener('cashflow:refresh', onRefresh);
+  }, [loadMe]);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {

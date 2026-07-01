@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
 import './Analytics.css';
 import { HelpTooltip } from '@/components/Tooltip';
+import { ChartBox } from '@/components/ChartBox';
 import { formatCurrency } from '@/lib/format';
 
 export default function AnalyticsClient({ currency, statement, budgetActuals, projection }: any) {
@@ -69,7 +70,7 @@ export default function AnalyticsClient({ currency, statement, budgetActuals, pr
               Confirmed path discounts receivables by collection probability. <HelpTooltip content="Best case assumes optimal invoice collection; worst case models unexpected delays across your open customer bills." />
             </p>
 
-            <div style={{ width: '100%', height: 400 }} className="mb-6">
+            <ChartBox height={400} className="mb-6">
               <ResponsiveContainer>
                 <LineChart data={series} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-border)" />
@@ -83,7 +84,7 @@ export default function AnalyticsClient({ currency, statement, budgetActuals, pr
                   <Line type="monotone" dataKey="worstCase" name="Worst Case" stroke="var(--danger)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
                 </LineChart>
               </ResponsiveContainer>
-            </div>
+            </ChartBox>
 
             <div className="insights-list">
               {projection.insights.map((text: string, i: number) => (
@@ -126,7 +127,7 @@ export default function AnalyticsClient({ currency, statement, budgetActuals, pr
                 </div>
 
                 <h4 className="font-semibold mb-4">Variance Breakdown</h4>
-                <div style={{ width: '100%', height: 300 }}>
+                <ChartBox height={300}>
                   <ResponsiveContainer>
                     <BarChart data={budgetActuals} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-border)" />
@@ -138,7 +139,7 @@ export default function AnalyticsClient({ currency, statement, budgetActuals, pr
                       <Bar dataKey="actual" name="Actual Outflow" fill="var(--secondary)" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
-                </div>
+                </ChartBox>
               </>
             )}
           </div>

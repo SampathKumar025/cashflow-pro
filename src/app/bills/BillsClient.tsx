@@ -59,7 +59,7 @@ export default function BillsClient({ initialBills, vendors, kpis, currency, can
       body: JSON.stringify({ paidDate: form.get('paidDate'), method: form.get('method'), amount: form.get('amount') }),
     });
     setBusy(false);
-    if (res.ok) { setPayTarget(null); router.refresh(); } else alert((await res.json()).error || 'Failed');
+    if (res.ok) { setPayTarget(null); router.refresh(); window.dispatchEvent(new Event('cashflow:refresh')); } else alert((await res.json()).error || 'Failed');
   };
 
   const logExpense = async (e: React.FormEvent) => {
@@ -70,7 +70,7 @@ export default function BillsClient({ initialBills, vendors, kpis, currency, can
       body: JSON.stringify({ date: form.get('date'), category: form.get('category'), amount: form.get('amount'), description: form.get('description') }),
     });
     setBusy(false);
-    if (res.ok) { setExpenseOpen(false); router.refresh(); } else alert((await res.json()).error || 'Failed');
+    if (res.ok) { setExpenseOpen(false); router.refresh(); window.dispatchEvent(new Event('cashflow:refresh')); } else alert((await res.json()).error || 'Failed');
   };
 
   return (
